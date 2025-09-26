@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPL Auction - Lobby</title>
+    <link rel="stylesheet" href="/public/css/main.css">
+</head>
+<body>
+    <div id="app-container">
+        <!-- Join/Create View -->
+        <div id="join-create-view">
+            <h2>IPL Auction Lobby</h2>
+            <p>Create a room and invite your friends, or join an existing one.</p>
+            <div class="lobby-actions">
+                <button id="create-room-btn" class="btn">Create New Room</button>
+            </div>
+            <hr>
+            <div class="lobby-actions">
+                <input type="text" id="room-code-input" placeholder="Enter Room Code">
+                <button id="join-room-btn" class="btn btn-secondary">Join Room</button>
+            </div>
+            <p id="error-message" class="hidden"></p>
+        </div>
+
+        <!-- Waiting Room View (Now includes team selection) -->
+        <div id="waiting-room-view" class="hidden">
+            <div class="waiting-room-header">
+                <h2>Waiting Room</h2>
+                <p>Room Code: <strong id="room-code-display"></strong></p>
+            </div>
+            <div class="waiting-room-body">
+                <div id="lobby-player-list-container">
+                    <h3>Players in Room</h3>
+                    <ul id="player-list"></ul>
+                </div>
+                <div id="lobby-team-selection-container">
+                    <h3>Select Your Team</h3>
+                    <div id="lobby-team-grid" class="team-grid">
+                        <!-- Team logos will be populated here -->
+                    </div>
+                </div>
+            </div>
+            <div class="lobby-actions">
+                <p id="waiting-for-host-msg" class="hidden">Waiting for the host to start the game...</p>
+                <button id="start-game-btn" class="btn hidden" disabled>Start Game</button>
+            </div>
+        </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/src/lobby.js"></script>
+</body>
+</html>

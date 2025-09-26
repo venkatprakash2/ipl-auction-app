@@ -1,0 +1,278 @@
+body {
+    background-color: #f0f2f5;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    color: #333;
+}
+
+/* --- GENERAL APP STYLES --- */
+#app-container {
+    width: 100%;
+    max-width: 1400px;
+    margin: 20px;
+    padding: 20px;
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+}
+.hidden { display: none !important; }
+.btn {
+    padding: 12px 24px;
+    font-size: 1.1em;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 5px;
+    background-color: #007bff;
+    color: white;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+.btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+.btn-secondary { background-color: #6c757d; }
+.btn:hover:not(:disabled) { background-color: #0056b3; transform: translateY(-2px); }
+.btn-secondary:hover:not(:disabled) { background-color: #5a6268; }
+
+/* --- LOBBY STYLES --- */
+.lobby-actions {
+    margin: 20px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+#room-code-input {
+    padding: 12px;
+    font-size: 1.1em;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+#error-message {
+    color: #d9534f;
+    font-weight: bold;
+    margin-top: 15px;
+}
+#waiting-room-view h3 { margin-top: 0; }
+#player-list { list-style-type: none; padding: 0; }
+#player-list li { padding: 8px; border-bottom: 1px solid #eee; font-size: 1.1em;}
+
+/* --- TEAM SELECTION STYLES --- */
+#team-selection-screen { text-align: center; }
+#team-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+.team-card {
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.team-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+.team-logo {
+    max-width: 100%;
+    width: 120px;
+    height: auto;
+}
+
+/* --- AUCTION ROOM STYLES --- */
+#auction-room-screen {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+}
+#left-panel, #right-panel {
+    flex: 1;
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    height: 80vh;
+    overflow-y: auto;
+}
+#center-panel {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    text-align: center;
+}
+#player-card-container {
+    width: 100%;
+    position: relative;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+#auction-view { width: 100%; }
+#bidding-area { width: 100%; }
+
+/* Team Dashboard & Squad */
+#my-team-info { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+#my-team-logo { width: 75px; height: auto; }
+#my-team-purse { font-weight: bold; color: #0c6a3b; }
+#squad-list { list-style-type: none; padding: 0; }
+#squad-list li { padding: 5px; border-bottom: 1px solid #eee; }
+
+/* Player Card Content */
+.player-name { font-size: 2.2em; font-weight: bold; margin: 10px 0; }
+.player-details { font-size: 1.1em; color: #555; margin: 10px 0; }
+.player-base-price { font-size: 1.4em; color: #0c6a3b; font-weight: bold; }
+
+/* Bidding Info */
+#current-bid-info { font-size: 1.2em; margin-bottom: 15px; }
+.passed-text {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #777;
+    padding: 20px 0;
+    text-align: center;
+}
+
+/* Right Panel: All Teams & Log */
+#all-teams-display { margin-bottom: 20px; }
+.team-item { padding: 4px; border-radius: 4px; margin-bottom: 2px; }
+#auction-log-list {
+    list-style-type: none;
+    padding: 0;
+    font-size: 0.9em;
+}
+#auction-log-list li { padding: 8px; border-bottom: 1px solid #eee; }
+
+/* --- UI POLISH STYLES --- */
+.team-item.current-bidder-highlight {
+    animation: bidderHighlight 1.5s ease-out;
+    box-shadow: 0 0 15px 5px rgba(255, 215, 0, 0.7);
+}
+@keyframes bidderHighlight {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.5); }
+    50% { transform: scale(1.02); box-shadow: 0 0 20px 8px rgba(255, 215, 0, 0.8); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.5); }
+}
+.player-card-sold-overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: #FFD700;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    font-size: 4em; font-weight: bold;
+    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7);
+    transform: rotate(-15deg) scale(0);
+    opacity: 0;
+    animation: soldStamp 0.5s ease-out forwards;
+    z-index: 10;
+}
+@keyframes soldStamp {
+    0% { transform: rotate(-15deg) scale(0); opacity: 0; }
+    70% { transform: rotate(-15deg) scale(1.1); opacity: 1; }
+    100% { transform: rotate(-15deg) scale(1); opacity: 1; }
+}
+.bid-timer-container {
+    position: relative; width: 80px; height: 80px;
+    border-radius: 50%; background-color: #eee;
+    display: flex; justify-content: center; align-items: center;
+    margin: 0 auto 15px;
+    overflow: hidden;
+    border: 2px solid #ccc;
+    font-size: 2em; font-weight: bold; color: #333;
+}
+.bid-timer-progress-bar {
+    position: absolute; bottom: 0; left: 0;
+    width: 100%; height: 100%;
+    background-color: #28a745; /* Green */
+    transition: height 1s linear, background-color 0.5s linear;
+    z-index: 1;
+}
+.bid-timer-display {
+    position: relative; z-index: 2;
+    color: #fff;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
+.bid-timer-container.warning .bid-timer-progress-bar { background-color: #ffc107; }
+.bid-timer-container.critical .bid-timer-progress-bar { background-color: #dc3545; }
+
+/* --- SUMMARY PAGE STYLES --- */
+.summary-tabs {
+    display: flex;
+    border-bottom: 2px solid #ccc;
+    margin-bottom: 20px;
+}
+.tab-button {
+    padding: 10px 20px;
+    cursor: pointer;
+    border: none;
+    background-color: transparent;
+    font-size: 1.1em;
+    border-bottom: 3px solid transparent;
+    transition: border-color 0.2s ease, color 0.2s ease;
+}
+.tab-button.active {
+    border-bottom-color: #007bff;
+    font-weight: bold;
+    color: #007bff;
+}
+.tab-content { display: none; animation: fadeIn 0.5s; }
+.tab-content.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.player-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 15px;
+}
+.player-summary-card {
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.player-summary-name { font-weight: bold; font-size: 1.2em; margin-bottom: 5px; }
+.player-summary-skill { color: #555; margin-bottom: 10px; }
+.player-summary-tier {
+    padding: 3px 12px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    background-color: #007bff;
+    color: white;
+    display: inline-block;
+    font-weight: bold;
+}
+#squad-analysis-content { display: flex; flex-wrap: wrap; gap: 40px; align-items: center; }
+.squad-rating { text-align: center; flex: 1; min-width: 200px; }
+.squad-breakdown { flex: 2; min-width: 300px; }
+#squad-grade { font-size: 5em; font-weight: bold; color: #0c6a3b; line-height: 1; }
+.squad-breakdown h3 { border-bottom: 1px solid #eee; padding-bottom: 5px; }
+.squad-breakdown p { line-height: 1.6; }
+.league-team-summary {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #ccc;
+}
+.league-team-summary:last-child { border-bottom: none; }
+.league-team-summary h3 { margin-top: 0; }
+.league-team-summary ul { list-style-type: none; padding-left: 0; column-count: 2; }
+
+#return-to-lobby-btn {
+    margin-top: 20px;
+}

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auction Room</title>
+    <link rel="stylesheet" href="/public/css/main.css">
+</head>
+<body>
+    <div id="app-container">
+        <div id="auction-room-screen">
+            <div id="left-panel">
+                <div id="team-dashboard">
+                    <h3>My Team</h3>
+                    <div id="my-team-info">
+                        <img id="my-team-logo" src="" alt="Team Logo">
+                        <div id="my-team-details">
+                            <h2 id="my-team-name"></h2>
+                            <p>Purse Remaining: <span id="my-team-purse"></span></p>
+                        </div>
+                    </div>
+                </div>
+                <div id="my-squad">
+                    <h3>My Squad (0/25)</h3>
+                    <ul id="squad-list"></ul>
+                </div>
+            </div>
+
+            <div id="center-panel">
+                <h2>Player Up for Auction</h2>
+                <div id="player-card-container" style="position: relative;">
+                    <div id="auction-view">
+                        <div id="pre-auction-view">
+                             <h3>Waiting for auction to start...</h3>
+                        </div>
+                    </div>
+                </div>
+                <div id="bidding-area">
+                    <div id="current-bid-info">
+                        <p>Current Bid: <span id="current-bid-amount">--</span></p>
+                        <p>By: <span id="current-bid-team">--</span></p>
+                    </div>
+                    <!-- New Visual Timer Structure -->
+                    <div id="bid-timer-container" class="bid-timer-container hidden">
+                        <div id="bid-timer-progress-bar" class="bid-timer-progress-bar"></div>
+                        <span id="bid-timer" class="bid-timer-display"></span>
+                    </div>
+                    <div id="bid-buttons">
+                        <button id="bid-button" class="btn">Bid</button>
+                        <button id="pass-button" class="btn btn-secondary">Pass</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="right-panel">
+                 <h3>All Teams</h3>
+                 <div id="all-teams-display">
+                     <!-- All teams will be listed here -->
+                 </div>
+                <h3 style="margin-top: 20px;">Auction Log</h3>
+                <ul id="auction-log-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/src/auction.js"></script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auction Summary</title>
+    <link rel="stylesheet" href="/public/css/main.css">
+</head>
+<body>
+    <div id="app-container">
+        <div id="summary-screen">
+            <h1>Auction Summary</h1>
+            <div class="summary-tabs">
+                <button class="tab-button active" data-tab="my-squad-tab">My Final Squad</button>
+                <button class="tab-button" data-tab="analysis-tab">Squad Analysis</button>
+                <button class="tab-button" data-tab="league-view-tab">League Overview</button>
+            </div>
+            <div class="lobby-actions" style="margin-top: 30px;">
+                <button id="return-to-lobby-btn" class="btn">Return to Lobby</button>
+            </div>
+
+            <!-- My Final Squad Tab -->
+            <div id="my-squad-tab" class="tab-content active">
+                <h2 id="my-final-team-name"></h2>
+                <div id="final-squad-list" class="player-grid">
+                    <!-- Final squad players will be populated here -->
+                </div>
+            </div>
+
+            <!-- Squad Analysis Tab -->
+            <div id="analysis-tab" class="tab-content">
+                <h2>Squad Analysis</h2>
+                <div id="squad-analysis-content">
+                    <div class="squad-rating">
+                        <h3>Overall Rating:</h3>
+                        <p id="squad-grade">Calculating...</p>
+                    </div>
+                    <div class="squad-breakdown">
+                        <h3>Strengths:</h3>
+                        <p id="squad-strengths">Calculating...</p>
+                        <h3>Weaknesses:</h3>
+                        <p id="squad-weaknesses">Calculating...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- League Overview Tab -->
+            <div id="league-view-tab" class="tab-content">
+                <h2>League Overview</h2>
+                <div id="league-squads">
+                    <!-- All teams' final squads will be listed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/src/summary.js"></script>
+</body>
+</html>
