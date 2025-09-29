@@ -14,12 +14,12 @@ const PORT = 3000;
 app.use(express.static(path.join(__dirname, '../client')));
 
 // Serve the HTML files
-app.get('/lobby.html', (req, res) => res.sendFile(path.join(__dirname, '../client/lobby.html')));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../client/dashboard.html')));
+app.get('/dashboard.html', (req, res) => res.sendFile(path.join(__dirname, '../client/dashboard.html')));
+app.get('/lobby.html', (req, res) => res.sendFile(path.join(__dirname, '../client/lobby.html')));
 app.get('/index.html', (req, res) => res.sendFile(path.join(__dirname, '../client/index.html')));
 app.get('/auction.html', (req, res) => res.sendFile(path.join(__dirname, '../client/auction.html')));
 app.get('/summary.html', (req, res) => res.sendFile(path.join(__dirname, '../client/summary.html')));
-app.get('/dashboard.html', (req, res) => res.sendFile(path.join(__dirname, '../client/dashboard.html')));
 
 // --- GLOBAL ROOM MANAGEMENT ---
 const rooms = {};
