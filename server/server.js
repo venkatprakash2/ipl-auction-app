@@ -20,7 +20,6 @@ app.get('/index.html', (req, res) => res.sendFile(path.join(__dirname, '../clien
 app.get('/auction.html', (req, res) => res.sendFile(path.join(__dirname, '../client/auction.html')));
 app.get('/summary.html', (req, res) => res.sendFile(path.join(__dirname, '../client/summary.html')));
 
-
 // --- GLOBAL ROOM MANAGEMENT ---
 const rooms = {};
 
@@ -28,7 +27,20 @@ const rooms = {};
 const SQUAD_NEEDS = { 'Batsman': 4, 'Bowler': 4, 'All-Rounder': 2, 'Wicket-Keeper': 1 };
 const TEAM_CODES = ["CSK", "MI", "RCB", "KKR", "SRH", "DC", "PBKS", "RR", "GT", "LSG"];
 const TEAM_NAMES = { CSK: "Chennai Super Kings", MI: "Mumbai Indians", RCB: "Royal Challengers Bengaluru", KKR: "Kolkata Knight Riders", SRH: "Sunrisers Hyderabad", DC: "Delhi Capitals", PBKS: "Punjab Kings", RR: "Rajasthan Royals", GT: "Gujarat Titans", LSG: "Lucknow Super Giants"};
-const TEAM_PERSONALITIES = { CSK: 'Balanced', MI: 'Balanced', RCB: 'Spendthrift', PBKS: 'Spendthrift', RR: 'Scout', DC: 'Scout', SRH: 'Conservative', GT: 'Conservative', KKR: 'Balanced', LSG: 'Balanced' };
+
+// Enhanced team personalities with more strategic behavior
+const TEAM_PERSONALITIES = { 
+    CSK: 'Experienced',    // Values experienced players and proven performers
+    MI: 'Strategic',       // Balanced approach with focus on match-winners
+    RCB: 'Star-Hunter',    // Aggressive bidding for elite players
+    PBKS: 'Aggressive',    // High spending, quick decisions
+    RR: 'Scout',          // Values young talent and bargain buys
+    DC: 'Analytical',     // Data-driven decisions, smart buys
+    SRH: 'Value-Focused', // Conservative but will spend on right players
+    GT: 'Balanced',       // Well-rounded approach
+    KKR: 'Opportunistic', // Waits for the right moment to strike
+    LSG: 'Modern'         // Focus on contemporary cricket skills
+};
 
 // --- HELPER FUNCTIONS ---
 function createNewAuctionState() {
@@ -45,7 +57,10 @@ function createNewAuctionState() {
         bidCount: 0,
         auctionTimer: null,
         participants: {},
-        passedTeams: []
+        passedTeams: [],
+        // Enhanced AI state tracking
+        aiBiddingState: {},  // Track AI bidding attempts per player
+        competitiveBidding: false  // Flag for elite player auctions
     };
 }
 
@@ -58,42 +73,161 @@ function calculateNextBid(currentAmount) {
 function initializeTeams(room) {
     room.teams = {};
     TEAM_CODES.forEach(code => {
-        room.teams[code] = { name: code, purse: 12500, squad: [], displayName: code };
+        room.teams[code] = { 
+            name: code, 
+            purse: 12500, 
+            squad: [], 
+            displayName: code,
+            // Enhanced AI tracking
+            priorityTargets: [],  // Players this team really wants
+            biddingHistory: []    // Track bidding patterns
+        };
     });
+    
+    // Initialize AI bidding state
+    room.aiBiddingState = {};
+    TEAM_CODES.forEach(code => {
+        room.aiBiddingState[code] = {
+            attemptedBids: 0,
+            maxAttempts: 3,
+            lastBidTime: 0,
+            isActive: true
+        };
+    });
+}
+
+/**
+ * Determines AI bidding probability based on player tier and team needs
+ */
+function getAiBiddingProbability(player, team, room) {
+    let baseProbability = 0.5; // Reduced from 0.75
+    
+    // Tier-based probability boost
+    switch (player.tier) {
+        case 'Elite': 
+            baseProbability = 0.95; // Almost guaranteed to bid on elite players
+            break;
+        case 'Tier 1': 
+            baseProbability = 0.85;
+            break;
+        case 'Tier 2': 
+            baseProbability = 0.70;
+            break;
+        case 'Uncapped': 
+            baseProbability = 0.60;
+            break;
+    }
+    
+    // Team personality adjustments
+    const personality = TEAM_PERSONALITIES[team.name];
+    switch(personality) {
+        case 'Star-Hunter':
+        case 'Aggressive':
+            if (player.tier === 'Elite' || player.tier === 'Tier 1') baseProbability = Math.min(1.0, baseProbability + 0.15);
+            break;
+        case 'Scout':
+            if (player.tier === 'Uncapped' || player.age < 25) baseProbability += 0.20;
+            break;
+        case 'Value-Focused':
+            baseProbability *= 0.8;
+            break;
+    }
+    
+    // Need-based probability
+    const currentCount = team.squad.filter(p => p.skill === player.skill).length;
+    const neededCount = SQUAD_NEEDS[player.skill] || 1;
+    if (currentCount < neededCount) {
+        baseProbability += 0.25;
+    }
+    
+    return Math.min(1.0, baseProbability);
+}
+
+/**
+ * Checks if a team should continue bidding aggressively
+ */
+function shouldContinueBidding(team, player, room, currentAttempts) {
+    const personality = TEAM_PERSONALITIES[team.name];
+    
+    // Elite players get more persistent bidding
+    if (player.tier === 'Elite') {
+        if (personality === 'Star-Hunter' || personality === 'Aggressive') {
+            return currentAttempts < 5; // Up to 5 attempts for star hunters
+        }
+        return currentAttempts < 3; // Up to 3 attempts for others
+    }
+    
+    if (player.tier === 'Tier 1') {
+        return currentAttempts < 3;
+    }
+    
+    return currentAttempts < 2;
 }
 
 // --- CORE AUCTION LOGIC ---
 function presentNextPlayer(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
+    
     room.currentPlayerIndex++;
     if (room.currentPlayerIndex >= room.playerPool.length) {
         io.to(roomCode).emit('auctionConcluded', { roomCode });
         room.isAuctionRunning = false;
         return;
     }
+    
     const player = room.playerPool[room.currentPlayerIndex];
     room.currentBid = player.basePrice;
     room.currentBidder = 'Base Price';
     room.bidCount = 0;
     room.passedTeams = [];
+    
+    // Reset AI bidding state for new player
+    TEAM_CODES.forEach(code => {
+        room.aiBiddingState[code] = {
+            attemptedBids: 0,
+            maxAttempts: (player.tier === 'Elite') ? 5 : 3,
+            lastBidTime: 0,
+            isActive: true,
+            hasShownInterest: false
+        };
+    });
+    
+    // Set competitive bidding flag for elite players
+    room.competitiveBidding = (player.tier === 'Elite' || player.tier === 'Tier 1');
+    
     clearInterval(room.auctionTimer);
+    
     io.to(roomCode).emit('nextPlayer', player);
     io.to(roomCode).emit('auctionUpdate', {
         currentBid: room.currentBid,
         currentBidder: room.currentBidder,
         timeLeft: null
     });
-    setTimeout(() => triggerAiBidding(roomCode), 2000);
+    
+    // Staggered AI bidding with multiple waves
+    setTimeout(() => triggerAiBidding(roomCode), 1500);
+    if (room.competitiveBidding) {
+        setTimeout(() => triggerAiBidding(roomCode), 4000);  // Second wave
+        setTimeout(() => triggerAiBidding(roomCode), 7000);  // Third wave
+    }
 }
 
 function startAuctionTimer(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
+    
     clearInterval(room.auctionTimer);
     let timeLeft = 10;
+    
     room.auctionTimer = setInterval(() => {
         io.to(roomCode).emit('auctionUpdate', { timeLeft });
+        
+        // Trigger additional AI bidding during countdown for competitive auctions
+        if (room.competitiveBidding && (timeLeft === 7 || timeLeft === 4)) {
+            setTimeout(() => triggerAiBidding(roomCode), 200);
+        }
+        
         timeLeft--;
         if (timeLeft < 0) {
             clearInterval(room.auctionTimer);
@@ -105,101 +239,256 @@ function startAuctionTimer(roomCode) {
 function sellPlayer(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
+    
     const player = room.playerPool[room.currentPlayerIndex];
     player.sold = true;
     const winningBidderCode = room.currentBidder;
     const winningBidAmount = room.currentBid;
+    
     if (winningBidderCode && winningBidderCode !== 'Base Price') {
         const winningTeam = room.teams[winningBidderCode];
         if (winningTeam) {
             winningTeam.purse -= winningBidAmount;
-            winningTeam.squad.push(player);
+            winningTeam.squad.push({...player, finalPrice: winningBidAmount});
+            
+            // Track bidding history
+            winningTeam.biddingHistory.push({
+                player: player.name,
+                amount: winningBidAmount,
+                tier: player.tier
+            });
+            
             io.to(roomCode).emit('playerSold', {
                 playerName: player.name,
                 team: winningTeam.displayName,
                 teamCode: winningTeam.name,
-                amount: winningBidAmount
+                finalPrice: winningBidAmount,
+                player: player
             });
         }
     } else {
-        io.to(roomCode).emit('playerSold', { playerName: player.name, team: "Unsold", amount: 0 });
+        io.to(roomCode).emit('playerSold', { 
+            playerName: player.name, 
+            team: "Unsold", 
+            amount: 0,
+            player: player
+        });
     }
+    
     io.to(roomCode).emit('auctionUpdate', { teams: room.teams });
-    setTimeout(() => presentNextPlayer(roomCode), 2000);
+    setTimeout(() => presentNextPlayer(roomCode), 2500);
 }
 
-// --- AI LOGIC ---
+// --- ENHANCED AI LOGIC ---
 function triggerAiBidding(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
+    
+    const currentPlayer = room.playerPool[room.currentPlayerIndex];
+    if (!currentPlayer || currentPlayer.sold) return;
+    
     const humanPlayerCodes = Object.values(room.participants).map(p => p.code);
+    
     const potentialBidders = Object.values(room.teams).filter(team => {
-        return team.name !== room.currentBidder && !humanPlayerCodes.includes(team.name);
+        return team.name !== room.currentBidder && 
+               !humanPlayerCodes.includes(team.name) &&
+               !room.passedTeams.includes(team.name) &&
+               room.aiBiddingState[team.name]?.isActive;
     });
-    for (const team of potentialBidders) {
-        if (Math.random() < 0.75) {
-            setTimeout(() => { aiDecideToBid(team, roomCode); }, Math.random() * 4000 + 1000);
+    
+    // Shuffle bidders to create unpredictable bidding patterns
+    const shuffledBidders = potentialBidders.sort(() => Math.random() - 0.5);
+    
+    shuffledBidders.forEach((team, index) => {
+        const biddingProb = getAiBiddingProbability(currentPlayer, team, room);
+        const aiState = room.aiBiddingState[team.name];
+        
+        // Check if team should bid based on probability and previous attempts
+        if (Math.random() < biddingProb && shouldContinueBidding(team, currentPlayer, room, aiState.attemptedBids)) {
+            const delay = (index * 800) + (Math.random() * 1200) + 500;
+            
+            setTimeout(() => { 
+                aiDecideToBid(team, roomCode);
+            }, delay);
         }
-    }
+    });
 }
 
 function aiDecideToBid(team, roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
+    
     const player = room.playerPool[room.currentPlayerIndex];
-    if (player.sold || room.currentBidder === team.name) return;
+    if (!player || player.sold || room.currentBidder === team.name) return;
+    
+    const aiState = room.aiBiddingState[team.name];
+    if (!aiState.isActive) return;
+    
+    // Update AI state
+    aiState.attemptedBids++;
+    aiState.lastBidTime = Date.now();
+    aiState.hasShownInterest = true;
+    
+    // Squad validation
     const squadSize = team.squad.length;
     const overseasCount = team.squad.filter(p => p.country !== 'India').length;
-    if (squadSize >= 25 || (player.country !== 'India' && overseasCount >= 8)) return;
+    
+    if (squadSize >= 25 || (player.country !== 'India' && overseasCount >= 8)) {
+        aiState.isActive = false;
+        return;
+    }
+    
     const nextBid = calculateNextBid(room.currentBid);
     const maxBid = calculatePlayerValueForTeam(player, team, room);
-    if (team.purse >= nextBid && nextBid <= maxBid) {
-        room.currentBid = nextBid;
-        room.currentBidder = team.name;
-        room.bidCount++;
-        io.to(roomCode).emit('auctionUpdate', {
-            currentBid: room.currentBid,
-            currentBidder: team.displayName
-        });
-        startAuctionTimer(roomCode);
+    
+    // Enhanced bidding decision with competitive factors
+    let shouldBid = team.purse >= nextBid && nextBid <= maxBid;
+    
+    if (shouldBid) {
+        // Add competitive bidding logic for elite players
+        if (player.tier === 'Elite' && room.bidCount < 8) {
+            // Elite players should generate more bidding activity
+            const competitiveBoost = Math.random() < 0.3; // 30% chance to bid even if slightly over budget
+            if (competitiveBoost && team.purse >= nextBid && nextBid <= maxBid * 1.1) {
+                shouldBid = true;
+            }
+        }
+        
+        if (shouldBid) {
+            room.currentBid = nextBid;
+            room.currentBidder = team.name;
+            room.bidCount++;
+            
+            // Create bidding message for more engagement
+            let message = `${team.displayName} bids ${formatCurrency(nextBid)} for ${player.name}`;
+            
+            io.to(roomCode).emit('auctionUpdate', {
+                currentBid: room.currentBid,
+                currentBidder: team.displayName,
+                message: message
+            });
+            
+            startAuctionTimer(roomCode);
+        }
+    } else {
+        // If can't bid, deactivate for this player
+        if (nextBid > team.purse) {
+            aiState.isActive = false;
+        }
     }
 }
 
 function calculatePlayerValueForTeam(player, team, room) {
+    // Enhanced base value calculation
     let baseValue;
     switch (player.tier) {
-        case 'Elite': baseValue = player.basePrice * 8; break;
-        case 'Tier 1': baseValue = player.basePrice * 5; break;
-        case 'Tier 2': baseValue = player.basePrice * 3; break;
-        case 'Uncapped': baseValue = player.basePrice * 2.5; break;
-        default: baseValue = player.basePrice * 2;
+        case 'Elite': 
+            baseValue = player.basePrice * 12; // Increased from 8
+            break;
+        case 'Tier 1': 
+            baseValue = player.basePrice * 8;  // Increased from 5
+            break;
+        case 'Tier 2': 
+            baseValue = player.basePrice * 4;  // Increased from 3
+            break;
+        case 'Uncapped': 
+            baseValue = player.basePrice * 3;  // Increased from 2.5
+            break;
+        default: 
+            baseValue = player.basePrice * 2.5;
     }
+    
+    // Enhanced bonus multipliers
     let bonusMultiplier = 1.0;
-    if (player.isCaptain) bonusMultiplier += 0.2;
-    if (player.age < 25) bonusMultiplier += 0.15;
+    if (player.isCaptain) bonusMultiplier += 0.3; // Increased from 0.2
+    if (player.age < 25) bonusMultiplier += 0.2;  // Increased from 0.15
+    if (player.age > 35) bonusMultiplier -= 0.1;  // Age penalty
+    
+    // Squad composition analysis
     const currentCount = team.squad.filter(p => p.skill === player.skill).length;
     const neededCount = SQUAD_NEEDS[player.skill] || 1;
+    
     let needFactor = 1.0;
     if (currentCount < neededCount) {
-        needFactor = 1.5 - (currentCount * 0.15);
+        needFactor = 1.8 - (currentCount * 0.2); // Increased urgency
+    } else if (currentCount >= neededCount + 2) {
+        needFactor = 0.6; // Reduced interest in excess positions
     } else {
-        needFactor = 0.8;
+        needFactor = 0.9;
     }
+    
+    // Enhanced personality modifiers
     let personalityModifier = 1.0;
     const personality = TEAM_PERSONALITIES[team.name];
+    
     switch(personality) {
-        case 'Spendthrift': if (player.tier === 'Elite' || player.tier === 'Tier 1') personalityModifier = 1.25; break;
-        case 'Scout': if (player.tier === 'Uncapped') personalityModifier = 1.4; break;
-        case 'Conservative': personalityModifier = 0.85; break;
+        case 'Star-Hunter':
+            if (player.tier === 'Elite') personalityModifier = 1.5;
+            else if (player.tier === 'Tier 1') personalityModifier = 1.3;
+            break;
+        case 'Aggressive':
+            if (player.tier === 'Elite' || player.tier === 'Tier 1') personalityModifier = 1.4;
+            break;
+        case 'Experienced':
+            if (player.age > 28 && (player.tier === 'Elite' || player.tier === 'Tier 1')) personalityModifier = 1.3;
+            break;
+        case 'Scout':
+            if (player.tier === 'Uncapped' || player.age < 25) personalityModifier = 1.6;
+            else personalityModifier = 0.9;
+            break;
+        case 'Value-Focused':
+            if (player.tier === 'Elite') personalityModifier = 0.9; // Less conservative for elite
+            else personalityModifier = 0.85;
+            break;
+        case 'Strategic':
+        case 'Analytical':
+            // More calculated approach - higher value for needed positions
+            if (currentCount < neededCount) personalityModifier = 1.2;
+            break;
+        case 'Opportunistic':
+            // Random boost for surprise bids
+            if (Math.random() < 0.3) personalityModifier = 1.3;
+            break;
     }
+    
+    // Auction phase modifiers
     let phaseModifier = 1.0;
     const totalPlayers = room.playerPool.length;
     const currentPlayerNum = room.currentPlayerIndex;
-    if (currentPlayerNum < 15) { phaseModifier = 1.1; }
-    else if (currentPlayerNum > totalPlayers - 15) { phaseModifier = 0.8; }
-    const randomFactor = Math.random() * 0.3 + 0.85;
-    const maxBid = baseValue * bonusMultiplier * needFactor * personalityModifier * phaseModifier * randomFactor;
+    
+    if (currentPlayerNum < 20) { 
+        phaseModifier = 1.2; // More aggressive early on
+    } else if (currentPlayerNum > totalPlayers - 20) { 
+        phaseModifier = 0.9; // Slightly more conservative at end
+    }
+    
+    // Budget pressure modifier
+    let budgetModifier = 1.0;
+    const remainingBudget = team.purse;
+    const squadGaps = 25 - team.squad.length;
+    
+    if (squadGaps > 0) {
+        const budgetPerPlayer = remainingBudget / squadGaps;
+        if (budgetPerPlayer < 50) { // Less than 50 lakhs per remaining slot
+            budgetModifier = 0.8;
+        } else if (budgetPerPlayer > 500) { // More than 5 crores per slot
+            budgetModifier = 1.2;
+        }
+    }
+    
+    // Reduced randomness, more predictable for elite players
+    const randomFactor = player.tier === 'Elite' ? 
+        Math.random() * 0.2 + 0.9 :  // 0.9 to 1.1 for elite
+        Math.random() * 0.3 + 0.85;  // 0.85 to 1.15 for others
+    
+    const maxBid = baseValue * bonusMultiplier * needFactor * personalityModifier * phaseModifier * budgetModifier * randomFactor;
+    
     return Math.round(maxBid / 5) * 5;
+}
+
+// Helper function to format currency (add this if not present)
+function formatCurrency(amountLakhs) {
+    return `₹${(amountLakhs / 100).toFixed(2)} Cr`;
 }
 
 // --- SOCKET.IO CONNECTION LOGIC ---
