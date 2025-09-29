@@ -11,15 +11,44 @@ const server = http.createServer(app);
 const io = socketIo(server);
 const PORT = 3000;
 
-app.use(express.static(path.join(__dirname, '../client')));
+// Middleware to log requests
+app.use((req, res, next) => {
+    console.log(`Request: ${req.method} ${req.url}`);
+    next();
+});
 
-// Serve the HTML files
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../client/dashboard.html')));
-app.get('/dashboard.html', (req, res) => res.sendFile(path.join(__dirname, '../client/dashboard.html')));
-app.get('/lobby.html', (req, res) => res.sendFile(path.join(__dirname, '../client/lobby.html')));
-app.get('/index.html', (req, res) => res.sendFile(path.join(__dirname, '../client/index.html')));
-app.get('/auction.html', (req, res) => res.sendFile(path.join(__dirname, '../client/auction.html')));
-app.get('/summary.html', (req, res) => res.sendFile(path.join(__dirname, '../client/summary.html')));
+// Serve static files EXCEPT root
+app.use('/public', express.static(path.join(__dirname, '../client/public')));
+app.use('/src', express.static(path.join(__dirname, '../client/src')));
+
+// Explicit HTML routes - order matters!
+app.get('/', (req, res) => {
+    console.log('Serving dashboard.html from root route');
+    res.sendFile(path.join(__dirname, '../client/dashboard.html'));
+});
+
+app.get('/dashboard.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/dashboard.html'));
+});
+
+app.get('/lobby.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/lobby.html'));
+});
+
+app.get('/index.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/index.html'));
+});
+
+app.get('/auction.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/auction.html'));
+});
+
+app.get('/summary.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/summary.html'));
+});
+
+// Serve other static files
+app.use(express.static(path.join(__dirname, '../client')));
 
 // --- GLOBAL ROOM MANAGEMENT ---
 const rooms = {};
@@ -778,6 +807,16 @@ io.on('connection', (socket) => {
                 presentNextPlayer(roomCode);
             }, 2000);
         });
+    });
+});
+
+// --- Add this debugging route temporarily to see what's happening
+app.get('/debug', (req, res) => {
+    res.json({
+        message: 'Server is working',
+        dashboardExists: require('fs').existsSync(path.join(__dirname, '../client/dashboard.html')),
+        clientPath: path.join(__dirname, '../client'),
+        dashboardPath: path.join(__dirname, '../client/dashboard.html')
     });
 });
 
