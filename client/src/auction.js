@@ -172,13 +172,22 @@ window.addEventListener('DOMContentLoaded', () => {
     playerId = localStorage.getItem('playerId');
 
     if (roomCode && teamCode && playerId) {
-        // Find team data and initialize
         myTeam = teams.find(t => t.code === teamCode);
         initializeAuctionRoom(true);
-        socket.emit('rejoinAuctionRoom', { roomCode, playerId, teamCode });
+        
+        // Register team and request full state
+        socket.emit('registerTeam', {
+            roomCode,
+            playerId,
+            teamData: myTeam
+        });
+        
+        socket.emit('requestFullState', {
+            roomCode,
+            playerId
+        });
     } else {
-        // Invalid session - redirect to lobby
-        alert('Invalid session. Redirecting to lobby.');
+        alert('Invalid session. Redirecting to dashboard.');
         window.location.href = '/';
     }
 });

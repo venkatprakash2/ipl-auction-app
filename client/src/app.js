@@ -23,10 +23,11 @@ let roomCode = null;
 window.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     roomCode = params.get('room');
+    const mode = params.get('mode'); // Check if it's single-player
+    
     if (!roomCode) {
-        // If no room code, redirect back to the lobby
         window.location.href = '/lobby.html';
-        return; // Stop further execution
+        return;
     }
 
     // Get our persistent player ID from storage
@@ -34,11 +35,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Tell the server who we are on this new page
     if (playerId) {
-        socket.emit('identify', { roomCode, playerId });
+        if (mode === 'single') {
+            // For single-player, we don't need to identify to server yet
+            // Just render team selection
+            renderTeamSelection();
+        } else {
+            // For multiplayer, identify to server
+            socket.emit('identify', { roomCode, playerId });
+            renderTeamSelection();
+        }
     }
-    
-    // Now that we have verified we're in a room, render the teams
-    renderTeamSelection();
 });
 
 function renderTeamSelection() {
@@ -55,10 +61,32 @@ function renderTeamSelection() {
 }
 
 function selectTeam(teamCode) {
-    // Navigate to the auction room, passing BOTH the room and team codes
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode');
+    
     if (roomCode) {
-        window.location.href = `/auction.html?room=${roomCode}&team=${teamCode}`;
+        if (mode === 'single') {
+            // For single-player, register team and start auction immediately
+            const selectedTeam = teams.find(t => t.code === teamCode);
+            const playerId = localStorage.getItem('playerId');
+            
+            socket.emit('registerSinglePlayerTeam', {
+                roomCode,
+                playerId,
+                teamData: { code: teamCode, name: selectedTeam.name }
+            });
+        } else {
+            // For multiplayer, go to auction room
+            window.location.href = `/auction.html?room=${roomCode}&team=${teamCode}`;
+        }
     } else {
         alert('Error: No room code found.');
     }
 }
+
+// Add this socket handler
+
+socket.on('redirectToAuction', (data) => {
+    console.log('Starting single-player auction...');
+    window.location.href = `/auction.html?room=${data.roomCode}&team=${data.teamCode}`;
+});

@@ -15,10 +15,11 @@ app.use(express.static(path.join(__dirname, '../client')));
 
 // Serve the HTML files
 app.get('/lobby.html', (req, res) => res.sendFile(path.join(__dirname, '../client/lobby.html')));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../client/lobby.html')));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../client/dashboard.html')));
 app.get('/index.html', (req, res) => res.sendFile(path.join(__dirname, '../client/index.html')));
 app.get('/auction.html', (req, res) => res.sendFile(path.join(__dirname, '../client/auction.html')));
 app.get('/summary.html', (req, res) => res.sendFile(path.join(__dirname, '../client/summary.html')));
+app.get('/dashboard.html', (req, res) => res.sendFile(path.join(__dirname, '../client/dashboard.html')));
 
 // --- GLOBAL ROOM MANAGEMENT ---
 const rooms = {};
@@ -491,6 +492,28 @@ function formatCurrency(amountLakhs) {
     return `₹${(amountLakhs / 100).toFixed(2)} Cr`;
 }
 
+// --- USER PROFILE MANAGEMENT ---
+function createDefaultUserProfile(userId) {
+    return {
+        userId: userId,
+        username: `Player_${userId.slice(-4)}`,
+        stats: {
+            totalAuctions: 0,
+            auctionsWon: 0,
+            averageSpending: 0,
+            bestSquadGrade: null,
+            totalPlayersOwned: 0
+        },
+        auctionHistory: [],
+        achievements: [],
+        preferences: {
+            defaultTeam: null,
+            bidSounds: true,
+            notifications: true
+        }
+    };
+}
+
 // --- SOCKET.IO CONNECTION LOGIC ---
 io.on('connection', (socket) => {
     console.log(`User connected with temporary ID: ${socket.id}`);
@@ -663,6 +686,98 @@ io.on('connection', (socket) => {
                 }
             }
         }
+    });
+
+    // Add these handlers to your io.on('connection') section in server.js
+
+    socket.on('createSinglePlayerRoom', (userId) => {
+        const roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
+        const room = createNewAuctionState();
+        
+        // Mark as single-player
+        room.isSinglePlayer = true;
+        room.hostId = userId;
+        
+        // Add human player
+        room.players[userId] = { 
+            socketId: socket.id, 
+            name: `Player 1`,
+            isHost: true, 
+            playerId: userId, 
+            team: null 
+        };
+        
+        // Fill remaining 9 slots with AI placeholders
+        const aiTeams = TEAM_CODES.slice(0, 9);
+        aiTeams.forEach((teamCode, index) => {
+            const aiId = `ai_${teamCode}`;
+            room.players[aiId] = {
+                socketId: null,
+                name: `AI ${TEAM_NAMES[teamCode]}`,
+                isHost: false,
+                playerId: aiId,
+                team: { code: teamCode, name: TEAM_NAMES[teamCode] },
+                isAI: true
+            };
+        });
+        
+        rooms[roomCode] = room;
+        socket.join(roomCode);
+        socket.emit('singlePlayerRoomCreated', { roomCode });
+        
+        console.log(`Single-player room ${roomCode} created for user ${userId}`);
+    });
+
+    socket.on('requestUserProfile', (userId) => {
+        // For now, just return a default profile
+        // Later this will load from database/file
+        const profile = createDefaultUserProfile(userId);
+        socket.emit('userProfileData', profile);
+    });
+
+    socket.on('registerSinglePlayerTeam', (data) => {
+        const { roomCode, playerId, teamData } = data;
+        const room = rooms[roomCode];
+        
+        if (!room || !room.isSinglePlayer) return;
+        
+        // Register human player's team
+        room.participants[playerId] = teamData;
+        
+        // Auto-register all AI teams
+        TEAM_CODES.forEach(code => {
+            if (code !== teamData.code) {
+                const aiId = `ai_${code}`;
+                room.participants[aiId] = { code, name: TEAM_NAMES[code] };
+            }
+        });
+        
+        // Start auction immediately for single-player
+        console.log(`[Room ${roomCode}] Single-player auction starting.`);
+        room.isAuctionRunning = true;
+        initializeTeams(room);
+        
+        // Set display names
+        room.teams[teamData.code].displayName = teamData.name;
+        TEAM_CODES.forEach(code => {
+            if (code !== teamData.code) {
+                room.teams[code].displayName = TEAM_NAMES[code];
+            }
+        });
+        
+        // Load players and start auction
+        fs.readFile(path.join(__dirname, '../client/public/data/players.json'), 'utf8', (err, fileData) => {
+            if (err) return;
+            room.playerPool = JSON.parse(fileData);
+            
+            // Redirect to auction page
+            socket.emit('redirectToAuction', { roomCode, teamCode: teamData.code });
+            
+            // Start first player after a short delay
+            setTimeout(() => {
+                presentNextPlayer(roomCode);
+            }, 2000);
+        });
     });
 });
 

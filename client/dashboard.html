@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPL Auction - Dashboard</title>
+    <link rel="stylesheet" href="/public/css/main.css">
+</head>
+<body>
+    <div id="app-container">
+        <div id="dashboard-container">
+            <!-- User Profile Section -->
+            <div id="user-profile-bar">
+                <img id="user-avatar" src="/public/images/default-avatar.png" alt="User Avatar">
+                <div id="user-info">
+                    <h3 id="username">Cricket Fan</h3>
+                    <p id="user-stats">0 Auctions • 0 Wins • No Grade Yet</p>
+                </div>
+                <button id="profile-btn" class="btn btn-secondary">Profile</button>
+            </div>
+
+            <!-- Game Mode Selection -->
+            <div id="game-mode-selection">
+                <div class="mode-card" id="single-player-mode">
+                    <h2>🏏 Single Player</h2>
+                    <p>Play against 9 AI teams in a solo auction experience</p>
+                    <button class="mode-btn btn" id="start-solo-btn">Start Solo Auction</button>
+                </div>
+                
+                <div class="mode-card" id="multiplayer-mode">
+                    <h2>👥 Multiplayer</h2>
+                    <p>Create or join rooms with friends for competitive auctions</p>
+                    <button class="mode-btn btn" id="enter-lobby-btn">Enter Lobby</button>
+                </div>
+            </div>
+
+            <!-- Quick Stats Dashboard -->
+            <div id="stats-dashboard">
+                <div class="stat-card">
+                    <h4>Recent Performance</h4>
+                    <div id="recent-auctions">
+                        <p>No recent auctions</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h4>Achievements</h4>
+                    <div id="achievements-list">
+                        <p>Complete your first auction to unlock achievements!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/src/dashboard.js"></script>
+</body>
+</html>
